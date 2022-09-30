@@ -1,6 +1,8 @@
 package gnoland
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -8,6 +10,7 @@ import (
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 	dbm "github.com/gnolang/gno/pkgs/db"
 	"github.com/gnolang/gno/pkgs/log"
 	"github.com/gnolang/gno/pkgs/sdk"
@@ -43,7 +46,7 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, skipFailingGenesisTxs))
+	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, vmKpr, skipFailingGenesisTxs))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -85,7 +88,7 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, skipFailingGenesisTxs bool) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, vmk vm.VMKeeperI, skipFailingGenesisTxs bool) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
 		genState := req.AppState.(GnoGenesisState)
@@ -115,7 +118,7 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 		}
 		// Done!
 		return abci.ResponseInitChain{
-			Validators: req.Validators,
+			Validators: loadValidatorsFromContract(ctx, vmk),
 		}
 	}
 }
@@ -139,6 +142,55 @@ func parseBalance(bal string) (crypto.Address, std.Coins) {
 // XXX not used yet.
 func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-		return abci.ResponseEndBlock{}
+		return abci.ResponseEndBlock{
+			ValidatorUpdates: loadValidatorsFromContract(ctx, vmk),
+		}
 	}
+}
+
+type gnoValidator struct {
+	Address string `json:"address"`
+	Pubkey  string `json:"pubkey"`
+	Vp      int64  `json:"vp"`
+}
+
+func loadValidatorsFromContract(ctx sdk.Context, vmk vm.VMKeeperI) []abci.ValidatorUpdate {
+	res, err := vmk.Call(ctx, vm.MsgCall{
+		Caller:  crypto.Address{},
+		Send:    std.Coins{},
+		PkgPath: "gno.land/r/staking",
+		Func:    "ValidatorSet",
+		Args:    []string{},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	jsonString := strings.TrimRight(strings.TrimLeft(res, `("`), `" string)`)
+	jsonString = strings.ReplaceAll(jsonString, `\`, "")
+	var validators []gnoValidator
+	err = json.Unmarshal([]byte(jsonString), &validators)
+	if err != nil {
+		panic(err)
+	}
+
+	var updates []abci.ValidatorUpdate
+	for _, v := range validators {
+		pubBytes, err := base64.StdEncoding.DecodeString(v.Pubkey)
+		if err != nil {
+			panic(err)
+		}
+
+		var pubkeyBytes [ed25519.PubKeyEd25519Size]byte
+		copy(pubkeyBytes[:], pubBytes[:32])
+		pubkey := ed25519.PubKeyEd25519(pubkeyBytes)
+		val := abci.ValidatorUpdate{
+			Address: pubkey.Address(),
+			PubKey:  pubkey,
+			Power:   v.Vp,
+		}
+		updates = append(updates, val)
+	}
+
+	return updates
 }
