@@ -14,6 +14,7 @@ import (
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/config"
 	"github.com/gnolang/gno/pkgs/bft/node"
+	"github.com/gnolang/gno/pkgs/bft/privval"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/log"
@@ -59,10 +60,16 @@ func runMain(args []string) error {
 		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
 	})
 
+	// create priv validator first.
+	// need it to generate genesis.json
+	newPrivValKey := cfg.PrivValidatorKeyFile()
+	newPrivValState := cfg.PrivValidatorStateFile()
+	priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
+
 	// write genesis file if missing.
 	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
 	if !osm.FileExists(genesisFilePath) {
-		genDoc := makeGenesisDoc()
+		genDoc := makeGenesisDoc(priv.GetPubKey())
 		writeGenesisFile(genDoc, genesisFilePath)
 	}
 
@@ -97,7 +104,7 @@ func runMain(args []string) error {
 }
 
 // Makes a local test genesis doc with local privValidator.
-func makeGenesisDoc() *bft.GenesisDoc {
+func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Now()
 	gen.ChainID = flags.chainID
@@ -110,7 +117,14 @@ func makeGenesisDoc() *bft.GenesisDoc {
 			TimeIotaMS:   100,      // 100ms
 		},
 	}
-	gen.Validators = []bft.GenesisValidator{}
+	gen.Validators = []bft.GenesisValidator{
+		{
+			Address: pvPub.Address(),
+			PubKey:  pvPub,
+			Power:   10,
+			Name:    "testvalidator",
+		},
+	}
 
 	// Load distribution.
 	balances := loadGenesisBalances(flags.genesisBalancesFile)
@@ -130,7 +144,6 @@ func makeGenesisDoc() *bft.GenesisDoc {
 		"r/foo20",
 		"r/boards",
 		"r/banktest",
-		"r/staking",
 	} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)
