@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/privval"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 	"github.com/gnolang/gno/pkgs/log"
 	osm "github.com/gnolang/gno/pkgs/os"
 	vmm "github.com/gnolang/gno/pkgs/sdk/vm"
@@ -58,17 +60,18 @@ func runMain(args []string) error {
 	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
 		cfg.Consensus.CreateEmptyBlocks = false
 		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
+		cfg.Consensus.TimeoutCommit = 5 * time.Second
 	})
-
-	// create priv validator first.
-	// need it to generate genesis.json
-	newPrivValKey := cfg.PrivValidatorKeyFile()
-	newPrivValState := cfg.PrivValidatorStateFile()
-	priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
 
 	// write genesis file if missing.
 	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
 	if !osm.FileExists(genesisFilePath) {
+		// create priv validator first.
+		// need it to generate genesis.json
+		newPrivValKey := cfg.PrivValidatorKeyFile()
+		newPrivValState := cfg.PrivValidatorStateFile()
+		priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
+
 		genDoc := makeGenesisDoc(priv.GetPubKey())
 		writeGenesisFile(genDoc, genesisFilePath)
 	}
@@ -118,14 +121,13 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		},
 	}
 	gen.Validators = []bft.GenesisValidator{
-		{
-			Address: pvPub.Address(),
-			PubKey:  pvPub,
-			Power:   10,
-			Name:    "testvalidator",
-		},
+		// {
+		// 	Address: pvPub.Address(),
+		// 	PubKey:  pvPub,
+		// 	Power:   10,
+		// 	Name:    "testvalidator",
+		// },
 	}
-
 	// Load distribution.
 	balances := loadGenesisBalances(flags.genesisBalancesFile)
 	// debug: for _, balance := range balances { fmt.Println(balance) }
@@ -144,6 +146,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"r/foo20",
 		"r/boards",
 		"r/banktest",
+		"r/validators",
 	} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)
@@ -159,6 +162,9 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 		txs = append(txs, tx)
 	}
+
+	// add validator
+	txs = append(txs, CreateValidatorTx(test1, pvPub))
 
 	// load genesis txs from file.
 	genesisTxs := loadGenesisTxs(flags.genesisTxsFile)
@@ -197,6 +203,24 @@ func loadGenesisTxs(path string) []std.Tx {
 		txs = append(txs, tx)
 	}
 	return txs
+}
+
+func CreateValidatorTx(valAddr crypto.Address, pvPub crypto.PubKey) (tx std.Tx) {
+	pubbytes := pvPub.(ed25519.PubKeyEd25519)
+	pubKeyString := base64.StdEncoding.EncodeToString(pubbytes[:])
+	tx.Msgs = []std.Msg{
+		vmm.MsgCall{
+			Caller:  valAddr,
+			Send:    std.MustParseCoins("10ugnot"),
+			PkgPath: "gno.land/r/validators",
+			Func:    "CreateValidator",
+			Args:    []string{pubKeyString},
+		},
+	}
+	tx.Fee = std.NewFee(200000, std.MustParseCoin("1ugnot"))
+	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+
+	return
 }
 
 func loadGenesisBalances(path string) []string {

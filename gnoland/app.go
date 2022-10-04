@@ -158,7 +158,7 @@ func loadValidatorsFromContract(ctx sdk.Context, vmk vm.VMKeeperI) []abci.Valida
 	res, err := vmk.Call(ctx, vm.MsgCall{
 		Caller:  crypto.Address{},
 		Send:    std.Coins{},
-		PkgPath: "gno.land/r/staking",
+		PkgPath: "gno.land/r/validators",
 		Func:    "ValidatorSet",
 		Args:    []string{},
 	})
