@@ -214,7 +214,7 @@ func CreateValidatorTx(valAddr crypto.Address, pvPub crypto.PubKey) (tx std.Tx) 
 			Send:    std.MustParseCoins("10ugnot"),
 			PkgPath: "gno.land/r/validators",
 			Func:    "CreateValidator",
-			Args:    []string{pubKeyString},
+			Args:    []string{"testvalidator", pubKeyString},
 		},
 	}
 	tx.Fee = std.NewFee(200000, std.MustParseCoin("1ugnot"))
