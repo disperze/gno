@@ -55,6 +55,20 @@ func ValidatorSet() string {
 	return "[" + output + "]"
 }
 
+func UpdateMaxValidators(max int) {
+	std.AssertOriginCall()
+	caller := std.GetOrigCaller()
+	if caller != admin {
+		panic("unauthorized")
+	}
+
+	if max <= maxValidators {
+		panic("new max must be greater than current value")
+	}
+
+	maxValidators = max
+}
+
 func Render(path string) string {
 	str := ""
 	str += ufmt.Sprintf("## Total Validators: %d | Max: %d\n\n", gValidators.Size(), maxValidators)
