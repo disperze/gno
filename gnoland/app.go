@@ -167,7 +167,7 @@ func loadValidatorsFromContract(ctx sdk.Context, vmk vm.VMKeeperI) []abci.Valida
 	}
 
 	jsonString := strings.TrimRight(strings.TrimLeft(res, `("`), `" string)`)
-	jsonString = strings.ReplaceAll(jsonString, `\`, "")
+	jsonString = strings.ReplaceAll(jsonString, `\"`, `"`)
 	var validators []gnoValidator
 	err = json.Unmarshal([]byte(jsonString), &validators)
 	if err != nil {

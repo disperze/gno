@@ -16,6 +16,10 @@ type Validator struct {
 }
 
 func newValidator(address std.Address, name, pubkey string, vp, joined int64) *Validator {
+	if name == "" || len(name) > 70 {
+		panic("invalid validator name")
+	}
+
 	pubk, err := base64.StdEncoding.DecodeString(pubkey)
 	if err != nil || len(pubk) != 32 {
 		panic("invalid pubkey")
