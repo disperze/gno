@@ -28,7 +28,7 @@ func TestUpdateMaxValidators(t *testing.T) {
 
 	std.TestSetOrigCaller(anon)
 	assertPanic(t, func() {
-		UpdateMaxValidators(15)
+		UpdateMaxValidators(25)
 	})
 
 	std.TestSetOrigCaller(admin)
