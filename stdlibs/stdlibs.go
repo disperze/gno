@@ -388,7 +388,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"bytes", "[20]byte",
 			),
 			gno.Flds( // results
-				"addr", "string",
+				"addr", "Address",
 			),
 			func(m *gno.Machine) {
 				arg0, arg1 := m.LastBlock().GetParams2()
@@ -401,7 +401,13 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if err != nil {
 					panic(err)
 				}
-				res0 := typedString(m.Alloc.NewString(b32))
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(b32),
+				)
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0.T = addrT
 				m.PushValue(res0)
 			},
 		)
