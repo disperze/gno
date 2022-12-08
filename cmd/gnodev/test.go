@@ -80,7 +80,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
-			pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
+			pkgPathSafe := strings.ReplaceAll(pkgPath, string(filepath.Separator), "~")
 			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
 			if err = os.MkdirAll(tempdir, 0o755); err != nil {
 				log.Fatal(err)
