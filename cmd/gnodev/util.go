@@ -79,7 +79,7 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 
 				// cannot use path.Join or filepath.Join, because we need
 				// to ensure that ./ is the prefix to pass to go build.
-				pkg := "./" + parentDir
+				pkg := "." + string(filepath.Separator) + parentDir
 				paths = append(paths, pkg)
 				return nil
 			})
