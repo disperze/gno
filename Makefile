@@ -25,9 +25,9 @@ gnokey:
 	go build -o build/gnokey ./cmd/gnokey
 
 # Development tool
-gnodev:
-	@echo "Building gnodev"
-	go build -o build/gnodev ./cmd/gnodev
+gnot:
+	@echo "Building gnot"
+	go build -o build/gnot ./cmd/gnodev
 
 install_gnokey:
 	@echo "Installing gnokey"
