@@ -62,7 +62,7 @@ func TestPrecompile(t *testing.T) {
 			assert.NoError(t, err)
 
 			// call preprocessor
-			transformed, err := precompileAST(fset, f, true)
+			transformed, err := precompileAST(fset, f, nil, true)
 			if c.expectedPreprocessorError == nil {
 				assert.NoError(t, err)
 			} else {
