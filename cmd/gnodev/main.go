@@ -28,7 +28,7 @@ var mainApps AppList = []AppItem{
 	{
 		App:      buildApp,
 		Name:     "build",
-		Desc:     "build a gno package from go files",
+		Desc:     "build a gno package",
 		Defaults: defaultBuildOptions,
 	},
 	{
