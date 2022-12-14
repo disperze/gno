@@ -34,7 +34,7 @@ var mainApps AppList = []AppItem{
 	{
 		App:      precompileApp,
 		Name:     "precompile",
-		Desc:     "precompile .gno to .go",
+		Desc:     "precompile .go to .gno",
 		Defaults: defaultPrecompileOptions,
 	},
 	{
