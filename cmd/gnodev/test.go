@@ -96,6 +96,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			CpDir(pkgPath, tempdir)
 			precompileOpts := precompileOptions{
 				Output: tempdir,
+				Test:   true,
 			}
 			err := precompilePkg(tempdir, precompileOpts)
 			if err != nil {

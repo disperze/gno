@@ -18,6 +18,7 @@ type precompileOptions struct {
 	GoBinary    string `flag:"go-binary" help:"go binary to use for building"`
 	GofmtBinary string `flag:"go-binary" help:"gofmt binary to use for syntax checking"`
 	Output      string `flag:"output" help:"output directory"`
+	Test        bool   `flag:"test" help:"include test files"`
 }
 
 var defaultPrecompileOptions = precompileOptions{
@@ -26,6 +27,7 @@ var defaultPrecompileOptions = precompileOptions{
 	GoBinary:    "go",
 	GofmtBinary: "gofmt",
 	Output:      ".",
+	Test:        false,
 }
 
 func precompileApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -95,16 +97,20 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	var targetFilename string
 	var tags string
 	nameNoExtension := strings.TrimSuffix(filepath.Base(srcPath), ".go")
+	targetFilename = nameNoExtension + ".gno"
 	switch {
 	case strings.HasSuffix(srcPath, "_filetest.go"):
+		if !opts.Test {
+			return nil
+		}
 		tags = "gno,filetest"
-		targetFilename = nameNoExtension + ".gno"
 	case strings.HasSuffix(srcPath, "_test.go"):
+		if !opts.Test {
+			return nil
+		}
 		tags = "gno,test"
-		targetFilename = nameNoExtension + ".gno"
 	default:
 		tags = "gno"
-		targetFilename = nameNoExtension + ".gno"
 	}
 
 	// preprocess.
