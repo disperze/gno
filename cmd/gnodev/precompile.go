@@ -59,7 +59,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 }
 
 func precompilePkg(pkgPath string, opts precompileOptions) error {
-	files, err := filepath.Glob(filepath.Join(pkgPath, "*.gno"))
+	files, err := filepath.Glob(filepath.Join(pkgPath, "*.go"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func precompilePkg(pkgPath string, opts precompileOptions) error {
 }
 
 func precompileFile(srcPath string, opts precompileOptions) error {
-	shouldCheckFmt := !opts.SkipFmt
+	// shouldCheckFmt := !opts.SkipFmt
 	verbose := opts.Verbose
 	gofmt := opts.GofmtBinary
 	if gofmt == "" {
@@ -94,17 +94,17 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	// compute attributes based on filename.
 	var targetFilename string
 	var tags string
-	nameNoExtension := strings.TrimSuffix(filepath.Base(srcPath), ".gno")
+	nameNoExtension := strings.TrimSuffix(filepath.Base(srcPath), ".go")
 	switch {
-	case strings.HasSuffix(srcPath, "_filetest.gno"):
+	case strings.HasSuffix(srcPath, "_filetest.go"):
 		tags = "gno,filetest"
-		targetFilename = "." + nameNoExtension + ".gno.gen.go"
-	case strings.HasSuffix(srcPath, "_test.gno"):
+		targetFilename = nameNoExtension + ".gno"
+	case strings.HasSuffix(srcPath, "_test.go"):
 		tags = "gno,test"
-		targetFilename = "." + nameNoExtension + ".gno.gen_test.go"
+		targetFilename = nameNoExtension + ".gno"
 	default:
 		tags = "gno"
-		targetFilename = nameNoExtension + ".gno.gen.go"
+		targetFilename = nameNoExtension + ".gno"
 	}
 
 	// preprocess.
@@ -115,19 +115,23 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 
 	// write .go file.
 	dir := filepath.Dir(srcPath)
-	targetPath := filepath.Join(dir, targetFilename)
+	buildDir := filepath.Join(dir, "build")
+	if err = os.MkdirAll(buildDir, 0755); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	targetPath := filepath.Join(buildDir, targetFilename)
 	err = os.WriteFile(targetPath, []byte(transformed), 0o644)
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}
 
 	// check .go fmt.
-	if shouldCheckFmt {
-		err = gno.PrecompileVerifyFile(targetPath, gofmt)
-		if err != nil {
-			return fmt.Errorf("check .go file: %w", err)
-		}
-	}
+	// if shouldCheckFmt {
+	// 	err = gno.PrecompileVerifyFile(targetPath, gofmt)
+	// 	if err != nil {
+	// 		return fmt.Errorf("check .go file: %w", err)
+	// 	}
+	// }
 
 	return nil
 }
