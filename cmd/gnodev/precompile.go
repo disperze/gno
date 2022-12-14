@@ -118,7 +118,7 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	edit := make(map[string]string, len(opts.Edit))
 	if len(opts.Edit) > 0 {
 		for _, e := range opts.Edit {
-			parts := strings.Split(e, ":")
+			parts := strings.Split(e, "=")
 			if len(parts) != 2 {
 				return fmt.Errorf("invalid edit: %s", e)
 			}
