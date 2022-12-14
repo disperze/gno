@@ -243,6 +243,10 @@ func precompileAST(fset *token.FileSet, f *ast.File, rewrite map[string]string, 
 					continue
 				}
 
+				if rewrite[importPath] != "" {
+					continue
+				}
+
 				errs = multierr.Append(errs, fmt.Errorf("import %q is not in the whitelist", importPath))
 			}
 		}
