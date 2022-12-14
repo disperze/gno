@@ -27,6 +27,7 @@ type testOptions struct {
 	RootDir string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
 	Run     string        `flag:"run" help:"test name filtering pattern"`
 	Timeout time.Duration `flag:"timeout" help:"max execution time (in ns)"` // FIXME: support ParseDuration: "1s"
+	Edit    []string      `flag:"edit" help:"edit import paths"`
 	// VM Options
 	// A flag about if we should download the production realms
 	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
@@ -37,6 +38,7 @@ var defaultTestOptions = testOptions{
 	Run:     "",
 	RootDir: "",
 	Timeout: 0,
+	Edit:    []string{},
 }
 
 func testApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -97,6 +99,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			precompileOpts := precompileOptions{
 				Output: tempdir,
 				Test:   true,
+				Edit:   opts.Edit,
 			}
 			err := precompilePkg(tempdir, precompileOpts)
 			if err != nil {

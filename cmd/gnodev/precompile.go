@@ -13,12 +13,13 @@ import (
 )
 
 type precompileOptions struct {
-	Verbose     bool   `flag:"verbose" help:"verbose"`
-	SkipFmt     bool   `flag:"skip-fmt" help:"do not check syntax of generated .go files"`
-	GoBinary    string `flag:"go-binary" help:"go binary to use for building"`
-	GofmtBinary string `flag:"go-binary" help:"gofmt binary to use for syntax checking"`
-	Output      string `flag:"output" help:"output directory"`
-	Test        bool   `flag:"test" help:"include test files"`
+	Verbose     bool     `flag:"verbose" help:"verbose"`
+	SkipFmt     bool     `flag:"skip-fmt" help:"do not check syntax of generated .go files"`
+	GoBinary    string   `flag:"go-binary" help:"go binary to use for building"`
+	GofmtBinary string   `flag:"go-binary" help:"gofmt binary to use for syntax checking"`
+	Output      string   `flag:"output" help:"output directory"`
+	Test        bool     `flag:"test" help:"include test files"`
+	Edit        []string `flag:"edit" help:"edit import paths"`
 }
 
 var defaultPrecompileOptions = precompileOptions{
@@ -28,6 +29,7 @@ var defaultPrecompileOptions = precompileOptions{
 	GofmtBinary: "gofmt",
 	Output:      ".",
 	Test:        false,
+	Edit:        []string{},
 }
 
 func precompileApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -113,8 +115,19 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 		tags = "gno"
 	}
 
+	edit := make(map[string]string, len(opts.Edit))
+	if len(opts.Edit) > 0 {
+		for _, e := range opts.Edit {
+			parts := strings.Split(e, ":")
+			if len(parts) != 2 {
+				return fmt.Errorf("invalid edit: %s", e)
+			}
+
+			edit[parts[0]] = parts[1]
+		}
+	}
 	// preprocess.
-	transformed, err := gno.Precompile(string(source), tags, srcPath)
+	transformed, err := gno.Precompile(string(source), tags, srcPath, edit)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

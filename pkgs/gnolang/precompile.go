@@ -85,7 +85,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip spurious file.
 		}
-		translated, err := Precompile(string(mfile.Body), "gno,tmp", mfile.Name)
+		translated, err := Precompile(string(mfile.Body), "gno,tmp", mfile.Name, nil)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -109,7 +109,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	return nil
 }
 
-func Precompile(source string, tags string, filename string) (string, error) {
+func Precompile(source string, tags string, filename string, rewrite map[string]string) (string, error) {
 	var out bytes.Buffer
 
 	fset := token.NewFileSet()
@@ -121,7 +121,7 @@ func Precompile(source string, tags string, filename string) (string, error) {
 	isTestFile := strings.HasSuffix(filename, "_test.go") || strings.HasSuffix(filename, "_filetest.go")
 	shouldCheckWhitelist := !isTestFile
 
-	transformed, err := precompileAST(fset, f, shouldCheckWhitelist)
+	transformed, err := precompileAST(fset, f, rewrite, shouldCheckWhitelist)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -203,7 +203,7 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	return nil
 }
 
-func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {
+func precompileAST(fset *token.FileSet, f *ast.File, rewrite map[string]string, checkWhitelist bool) (ast.Node, error) {
 	var errs error
 
 	imports := astutil.Imports(fset, f)
@@ -279,7 +279,12 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 				if !astutil.RewriteImport(fset, f, importPath, target) {
 					errs = multierr.Append(errs, fmt.Errorf("failed to replace the %q package with %q", importPath, target))
 				}
+			}
 
+			if newPath, ok := rewrite[importPath]; ok {
+				if !astutil.RewriteImport(fset, f, importPath, newPath) {
+					errs = multierr.Append(errs, fmt.Errorf("failed to replace the %q package with %q", importPath, newPath))
+				}
 			}
 		}
 	}
