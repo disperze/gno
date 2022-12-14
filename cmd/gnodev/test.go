@@ -76,19 +76,29 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkgPath := range pkgPaths {
+		origPkgPath := pkgPath
 		if opts.Precompile {
 			if verbose {
 				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
-			pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
-			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
-			if err = os.MkdirAll(tempdir, 0o755); err != nil {
-				log.Fatal(err)
+
+			err = goBuildFileOrPkg(pkgPath, defaultBuildOptions)
+			if err != nil {
+				cmd.ErrPrintln(err)
+				cmd.ErrPrintln("FAIL")
+				cmd.ErrPrintfln("FAIL    %s", pkgPath)
+				cmd.ErrPrintln("FAIL")
+				buildErrCount++
+				continue
 			}
+
+			pkgPathSafe := strings.ReplaceAll(pkgPath, string(filepath.Separator), "~")
+			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
+			CpDir(pkgPath, tempdir)
 			precompileOpts := precompileOptions{
 				Output: tempdir,
 			}
-			err := precompilePkg(pkgPath, precompileOpts)
+			err := precompilePkg(tempdir, precompileOpts)
 			if err != nil {
 				cmd.ErrPrintln(err)
 				cmd.ErrPrintln("FAIL")
@@ -101,15 +111,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== BUILD %s", pkgPath)
 			}
-			err = goBuildFileOrPkg(tempdir, defaultBuildOptions)
-			if err != nil {
-				cmd.ErrPrintln(err)
-				cmd.ErrPrintln("FAIL")
-				cmd.ErrPrintfln("FAIL    %s", pkgPath)
-				cmd.ErrPrintln("FAIL")
-				buildErrCount++
-				continue
-			}
+			pkgPath = filepath.Join(tempdir, "build")
 		}
 
 		unittestFiles, err := filepath.Glob(filepath.Join(pkgPath, "*_test.gno"))
@@ -134,13 +136,13 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		dstr := fmtDuration(duration)
 
 		if err != nil {
-			cmd.ErrPrintfln("%s: test pkg: %v", pkgPath, err)
+			cmd.ErrPrintfln("%s: test pkg: %v", origPkgPath, err)
 			cmd.ErrPrintfln("FAIL")
-			cmd.ErrPrintfln("FAIL    %s \t%s", pkgPath, dstr)
+			cmd.ErrPrintfln("FAIL    %s \t%s", origPkgPath, dstr)
 			cmd.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			cmd.ErrPrintfln("ok      %s \t%s", pkgPath, dstr)
+			cmd.ErrPrintfln("ok      %s \t%s", origPkgPath, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
